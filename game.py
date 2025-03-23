@@ -15,6 +15,7 @@ BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
+GRAY = (200, 200, 200)
 
 # Fonts
 font = pygame.font.Font(None, 36)
@@ -23,6 +24,12 @@ font = pygame.font.Font(None, 36)
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("MaxLiga Game")
 
+# Pogu izmēri un pozīcijas
+BUTTON_WIDTH = 100
+BUTTON_HEIGHT = 50
+BUTTON_GAP = 20
+
+# Spēles stāvokļa klase
 class Game:
     def __init__(self, start_number):
         self.current_number = start_number
@@ -106,6 +113,13 @@ def computer_move(game_state, algorithm):
             best_multiplier = multiplier
     return best_multiplier
 
+# Funkcija, lai zīmētu pogas
+def draw_button(text, x, y, width, height, color):
+    pygame.draw.rect(window, color, (x, y, width, height))
+    text_surface = font.render(text, True, BLACK)
+    text_rect = text_surface.get_rect(center=(x + width / 2, y + height / 2))
+    window.blit(text_surface, text_rect)
+
 # Galvenā funkcija
 def main():
     clock = pygame.time.Clock()
@@ -123,65 +137,85 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-            if event.type == KEYDOWN:
-                if input_active:
-                    if event.key == K_RETURN:
-                        start_number = int(input_text)
-                        game = Game(start_number)
-                        input_active = False
-                    elif event.key == K_BACKSPACE:
-                        input_text = input_text[:-1]
+            if event.type == KEYDOWN and input_active:
+                if event.key == K_RETURN:
+                    if input_text.strip():  # Pārbauda, vai input_text nav tukšs
+                        try:
+                            start_number = int(input_text)
+                            if 20 <= start_number <= 30:
+                                game = Game(start_number)
+                                input_active = False
+                            else:
+                                print("Skaitlim jābūt no 20 līdz 30!")
+                        except ValueError:
+                            print("Ievadiet derīgu skaitli!")
                     else:
-                        input_text += event.unicode
+                        print("Ievadiet skaitli!")
+                elif event.key == K_BACKSPACE:
+                    input_text = input_text[:-1]
                 else:
+                    if event.unicode.isdigit():  # Pārbauda, vai ievadītais simbols ir cipars
+                        input_text += event.unicode
+
+            if event.type == MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if not input_active:
                     if algorithm is None:
-                        if event.key == K_1:
+                        # Pārbauda, vai noklikšķināts uz algoritma pogām
+                        if 200 <= mouse_pos[0] <= 350 and 200 <= mouse_pos[1] <= 250:
                             algorithm = "minimax"
-                        elif event.key == K_2:
+                        elif 450 <= mouse_pos[0] <= 600 and 200 <= mouse_pos[1] <= 250:
                             algorithm = "alphabeta"
                     else:
                         if player_turn:
-                            if event.key == K_3:
+                            # Pārbauda, vai noklikšķināts uz gājiena pogām
+                            if 200 <= mouse_pos[0] <= 300 and 400 <= mouse_pos[1] <= 450:
                                 game.make_move(3)
-                                player_turn = False  # Pārslēdz uz datora gājienu
-                            elif event.key == K_4:
+                                player_turn = False
+                            elif 350 <= mouse_pos[0] <= 450 and 400 <= mouse_pos[1] <= 450:
                                 game.make_move(4)
                                 player_turn = False
-                            elif event.key == K_5:
+                            elif 500 <= mouse_pos[0] <= 600 and 400 <= mouse_pos[1] <= 450:
                                 game.make_move(5)
                                 player_turn = False
                         else:
                             # Dators veic gājienu
                             multiplier = computer_move(game, algorithm)
                             game.make_move(multiplier)
-                            player_turn = True  # Pārslēdz atpakaļ uz spēlētāja gājienu
+                            player_turn = True
 
                             # Pēc datora gājiena atjaunina ekrānu
                             window.fill(WHITE)
                             draw_text(f"Pašreizējais skaitlis: {game.current_number}", 100, 100, BLACK)
                             draw_text(f"Kopējie punkti: {game.total_points}", 100, 150, BLACK)
                             draw_text(f"Banka: {game.bank}", 100, 200, BLACK)
-                            draw_text("Dators veica gājienu. Spiediet 3, 4 vai 5, lai veiktu gājienu.", 100, 250, BLACK)
+                            draw_text("Dators veica gājienu. Izvēlieties gājienu.", 100, 250, BLACK)
                             pygame.display.update()
                             pygame.time.delay(1000)  # Neliels aizkave, lai varētu redzēt datora gājienu
 
         if input_active:
             draw_text("Ievadiet sākuma skaitli (20-30):", 100, 100, BLACK)
             draw_text(input_text, 100, 150, BLACK)
+            draw_button("Enter", 300, 200, 200, 50, GRAY)
         else:
             if algorithm is None:
-                draw_text("Izvēlieties algoritmu: 1 - Minimaks, 2 - Alfa-beta", 100, 100, BLACK)
+                draw_text("Izvēlieties algoritmu:", 100, 100, BLACK)
+                draw_button("Minimaks", 200, 200, 150, 50, GRAY)
+                draw_button("Alfa-beta", 450, 200, 150, 50, GRAY)
             else:
                 draw_text(f"Pašreizējais skaitlis: {game.current_number}", 100, 100, BLACK)
                 draw_text(f"Kopējie punkti: {game.total_points}", 100, 150, BLACK)
                 draw_text(f"Banka: {game.bank}", 100, 200, BLACK)
                 if player_turn:
-                    draw_text("Spiediet 3, 4 vai 5, lai veiktu gājienu", 100, 250, BLACK)
+                    draw_text("Izvēlieties gājienu:", 100, 300, BLACK)
+                    draw_button("3", 200, 400, 100, 50, GRAY)
+                    draw_button("4", 350, 400, 100, 50, GRAY)
+                    draw_button("5", 500, 400, 100, 50, GRAY)
                 else:
-                    draw_text("Dators veic gājienu...", 100, 250, BLACK)
+                    draw_text("Dators veic gājienu...", 100, 300, BLACK)
 
                 if game.game_over:
-                    draw_text(f"Spēle beigusies! Uzvarētājs: {game.winner}", 100, 300, RED)
+                    draw_text(f"Spēle beigusies! Uzvarētājs: {game.winner}", 100, 500, RED)
 
         pygame.display.update()
         clock.tick(30)
