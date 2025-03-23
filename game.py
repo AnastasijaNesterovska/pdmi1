@@ -1,67 +1,64 @@
 import pygame
-import sys
 import random
+import time
 
-# Инициализация Pygame
+# Inicializē Pygame
 pygame.init()
 
-# Размеры окна
-WIDTH, HEIGHT = 600, 400
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Spēle: Reizināšana")
-
-# Цвета
+# Krāsas
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
+RED = (255, 0, 0)
 
-# Шрифт для текста
-font = pygame.font.Font(None, 36)
+# Spēles loga izmēri
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 400
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Spēle")
 
+# Fonts
+font = pygame.font.SysFont(None, 36)
+
+# Spēles klase
 class Game:
     def __init__(self):
         self.start_number = 0
         self.current_number = 0
         self.total_points = 0
         self.bank = 0
+        self.players_turn = True  # True = Player's turn, False = Computer's turn
         self.running = True
 
     def start_game(self, start_number):
-        if 20 <= start_number <= 30:
-            self.start_number = start_number
-            self.current_number = start_number
-            self.total_points = 0
-            self.bank = 0
-        else:
-            print("Ievadiet skaitli no 20 līdz 30")
+        self.start_number = start_number
+        self.current_number = start_number
+        self.total_points = 0
+        self.bank = 0
 
     def make_move(self, multiplier):
         current = self.current_number
         new_number = current * multiplier
-        
-        # Ранжирование очков
+        self.current_number = new_number
+
+        # Pāra vai nepāra skaitlis
         if new_number % 2 == 0:
             self.total_points += 1
         else:
             self.total_points -= 1
-        
+
+        # Skaitlis beidzas ar 0 vai 5
         if new_number % 10 == 0 or new_number % 10 == 5:
             self.bank += 1
-        
-        self.current_number = new_number
 
         if new_number >= 3000:
             self.end_game()
 
     def end_game(self):
-        final_score = self.total_points
-        if final_score % 2 == 0:
-            final_score -= self.bank
+        if self.total_points % 2 == 0:
+            self.total_points -= self.bank
         else:
-            final_score += self.bank
-        
-        winner = "Pirmais spēlētājs" if final_score % 2 == 0 else "Otrais spēlētājs"
-        print(f"Spēle beigusies! Uzvarētājs: {winner}")
+            self.total_points += self.bank
         self.running = False
 
     def reset_game(self):
@@ -70,51 +67,124 @@ class Game:
         self.total_points = 0
         self.bank = 0
 
-# Основной игровой цикл
-game = Game()
-game.start_game(25)  # Пример начала игры с числа 25
+# Minimaksa algoritms
+def minimax(game, depth, is_maximizing_player):
+    if depth == 0 or game.current_number >= 3000:
+        return game.total_points
 
-while game.running:
-    screen.fill(WHITE)
+    if is_maximizing_player:
+        max_eval = float('-inf')
+        for multiplier in [3, 4, 5]:
+            game.make_move(multiplier)
+            eval = minimax(game, depth - 1, False)
+            max_eval = max(max_eval, eval)
+        return max_eval
+    else:
+        min_eval = float('inf')
+        for multiplier in [3, 4, 5]:
+            game.make_move(multiplier)
+            eval = minimax(game, depth - 1, True)
+            min_eval = min(min_eval, eval)
+        return min_eval
 
-    # Отображаем текущие данные
-    start_text = font.render(f"Start number: {game.start_number}", True, BLACK)
-    screen.blit(start_text, (20, 20))
+# Alfa-beta algoritms
+def alpha_beta(game, depth, alpha, beta, is_maximizing_player):
+    if depth == 0 or game.current_number >= 3000:
+        return game.total_points
 
-    current_text = font.render(f"Current number: {game.current_number}", True, BLACK)
-    screen.blit(current_text, (20, 60))
+    if is_maximizing_player:
+        max_eval = float('-inf')
+        for multiplier in [3, 4, 5]:
+            game.make_move(multiplier)
+            eval = alpha_beta(game, depth - 1, alpha, beta, False)
+            max_eval = max(max_eval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return max_eval
+    else:
+        min_eval = float('inf')
+        for multiplier in [3, 4, 5]:
+            game.make_move(multiplier)
+            eval = alpha_beta(game, depth - 1, alpha, beta, True)
+            min_eval = min(min_eval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return min_eval
 
-    points_text = font.render(f"Total points: {game.total_points}", True, BLACK)
-    screen.blit(points_text, (20, 100))
+# GUI funkcija, lai attēlotu tekstu uz ekrāna
+def display_text(text, x, y, color=BLACK):
+    rendered_text = font.render(text, True, color)
+    screen.blit(rendered_text, (x, y))
 
-    bank_text = font.render(f"Bank: {game.bank}", True, BLACK)
-    screen.blit(bank_text, (20, 140))
+# Galvenais spēles cikls
+def main():
+    game = Game()
+    clock = pygame.time.Clock()
 
-    # Кнопки для игры
-    button_font = pygame.font.Font(None, 28)
+    # Spēles sākums
+    playing = True
+    while playing:
+        screen.fill(WHITE)
 
-    button_3 = pygame.draw.rect(screen, GREEN, (20, 200, 150, 40))
-    button_4 = pygame.draw.rect(screen, GREEN, (20, 250, 150, 40))
-    button_5 = pygame.draw.rect(screen, GREEN, (20, 300, 150, 40))
+        # Spēlētāja izvēles izvēlne
+        display_text("Izvēlies skaitli no 20 līdz 30, lai sāktu:", 50, 50)
+        pygame.display.update()
 
-    screen.blit(button_font.render("Multiply by 3", True, BLACK), (50, 210))
-    screen.blit(button_font.render("Multiply by 4", True, BLACK), (50, 260))
-    screen.blit(button_font.render("Multiply by 5", True, BLACK), (50, 310))
+        # Gaidām spēlētāja izvēli
+        start_number = 0
+        while start_number < 20 or start_number > 30:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    playing = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:  # Spēlētājs apstiprina izvēli
+                        game.start_game(start_number)
+                        break
+                    elif event.key in range(pygame.K_1, pygame.K_9 + 1):
+                        start_number = int(chr(event.key))
+                    elif event.key == pygame.K_0:
+                        start_number = 0
 
-    # Обработка событий
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            game.running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            if button_3.collidepoint(mouse_x, mouse_y):
-                game.make_move(3)
-            elif button_4.collidepoint(mouse_x, mouse_y):
-                game.make_move(4)
-            elif button_5.collidepoint(mouse_x, mouse_y):
-                game.make_move(5)
+        # Parādām spēles statusu
+        display_text(f"Starta skaitlis: {start_number}", 50, 150)
+        display_text(f"Skaitlis: {game.current_number}", 50, 200)
+        display_text(f"Totālie punkti: {game.total_points}", 50, 250)
+        display_text(f"Bankas punkti: {game.bank}", 50, 300)
 
-    pygame.display.update()
+        pygame.display.update()
 
+        # Spēlētāja vai datora gājiens
+        if game.players_turn:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    playing = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_3:
+                        game.make_move(3)
+                    elif event.key == pygame.K_4:
+                        game.make_move(4)
+                    elif event.key == pygame.K_5:
+                        game.make_move(5)
+
+        # Datora gājiens (Minimaksa vai Alfa-beta algoritms)
+        else:
+            best_move = minimax(game, 3, True)  # Vai izmantot Alfa-beta šeit, atkarībā no izvēles
+            game.make_move(best_move)
+            game.players_turn = True  # Mainām gājienus
+
+        # Spēles beigas
+        if not game.running:
+            display_text("Spēle beigusies", 50, 350)
+            pygame.display.update()
+            time.sleep(3)  # Parāda rezultātus uz 3 sekundēm
+            playing = False
+
+        clock.tick(30)
+
+# Spēles sākšana
+main()
+
+# Aizveram Pygame
 pygame.quit()
-sys.exit()
