@@ -1,95 +1,120 @@
-import tkinter as tk
-from tkinter import messagebox
+import pygame
+import sys
+import random
 
-class GameApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Spēle: Reizināšana")
+# Инициализация Pygame
+pygame.init()
 
-        self.start_number = tk.IntVar()
-        self.current_number = tk.IntVar()
-        self.total_points = tk.IntVar(value=0)
-        self.bank = tk.IntVar(value=0)
-        
-        # Составление интерфейса
-        tk.Label(root, text="Izvēlieties sākuma skaitli (20-30):").pack()
-        self.entry = tk.Entry(root, textvariable=self.start_number)
-        self.entry.pack()
+# Размеры окна
+WIDTH, HEIGHT = 600, 400
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Spēle: Reizināšana")
 
-        self.start_button = tk.Button(root, text="Sākt spēli", command=self.start_game)
-        self.start_button.pack()
+# Цвета
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
 
-        # Отображение текущего состояния игры
-        tk.Label(root, text="Pašreizējais skaitlis:").pack()
-        self.current_label = tk.Label(root, textvariable=self.current_number)
-        self.current_label.pack()
+# Шрифт для текста
+font = pygame.font.Font(None, 36)
 
-        tk.Label(root, text="Kopējie punkti:").pack()
-        self.points_label = tk.Label(root, textvariable=self.total_points)
-        self.points_label.pack()
+class Game:
+    def __init__(self):
+        self.start_number = 0
+        self.current_number = 0
+        self.total_points = 0
+        self.bank = 0
+        self.running = True
 
-        tk.Label(root, text="Banka:").pack()
-        self.bank_label = tk.Label(root, textvariable=self.bank)
-        self.bank_label.pack()
-
-        # Кнопки для геймов
-        self.move_buttons = []
-        for multiplier in [3, 4, 5]:
-            btn = tk.Button(root, text=f"Reizināt ar {multiplier}", command=lambda m=multiplier: self.make_move(m))
-            btn.pack()
-            self.move_buttons.append(btn)
-
-        self.reset_button = tk.Button(root, text="Sākt no jauna", command=self.reset_game)
-        self.reset_button.pack()
-
-    def start_game(self):
-        try:
-            num = self.start_number.get()
-            if 20 <= num <= 30:
-                self.current_number.set(num)
-                self.total_points.set(0)
-                self.bank.set(0)
-            else:
-                messagebox.showerror("Kļūda", "Ievadiet skaitli no 20 līdz 30")
-        except tk.TclError:
-            messagebox.showerror("Kļūda", "Nederīga ievade")
+    def start_game(self, start_number):
+        if 20 <= start_number <= 30:
+            self.start_number = start_number
+            self.current_number = start_number
+            self.total_points = 0
+            self.bank = 0
+        else:
+            print("Ievadiet skaitli no 20 līdz 30")
 
     def make_move(self, multiplier):
-        current = self.current_number.get()
+        current = self.current_number
         new_number = current * multiplier
         
-        # Присвоение очков в зависимости от результата
+        # Ранжирование очков
         if new_number % 2 == 0:
-            self.total_points.set(self.total_points.get() + 1)
+            self.total_points += 1
         else:
-            self.total_points.set(self.total_points.get() - 1)
-
+            self.total_points -= 1
+        
         if new_number % 10 == 0 or new_number % 10 == 5:
-            self.bank.set(self.bank.get() + 1)
-
-        self.current_number.set(new_number)
+            self.bank += 1
+        
+        self.current_number = new_number
 
         if new_number >= 3000:
             self.end_game()
 
     def end_game(self):
-        final_score = self.total_points.get()
+        final_score = self.total_points
         if final_score % 2 == 0:
-            final_score -= self.bank.get()
+            final_score -= self.bank
         else:
-            final_score += self.bank.get()
-
+            final_score += self.bank
+        
         winner = "Pirmais spēlētājs" if final_score % 2 == 0 else "Otrais spēlētājs"
-        messagebox.showinfo("Spēles beigas", f"Spēle beigusies! Uzvarētājs: {winner}")
+        print(f"Spēle beigusies! Uzvarētājs: {winner}")
+        self.running = False
 
     def reset_game(self):
-        self.start_number.set(0)
-        self.current_number.set(0)
-        self.total_points.set(0)
-        self.bank.set(0)
-        self.entry.delete(0, tk.END)
+        self.start_number = 0
+        self.current_number = 0
+        self.total_points = 0
+        self.bank = 0
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = GameApp(root)
-    root.mainloop()
+# Основной игровой цикл
+game = Game()
+game.start_game(25)  # Пример начала игры с числа 25
+
+while game.running:
+    screen.fill(WHITE)
+
+    # Отображаем текущие данные
+    start_text = font.render(f"Start number: {game.start_number}", True, BLACK)
+    screen.blit(start_text, (20, 20))
+
+    current_text = font.render(f"Current number: {game.current_number}", True, BLACK)
+    screen.blit(current_text, (20, 60))
+
+    points_text = font.render(f"Total points: {game.total_points}", True, BLACK)
+    screen.blit(points_text, (20, 100))
+
+    bank_text = font.render(f"Bank: {game.bank}", True, BLACK)
+    screen.blit(bank_text, (20, 140))
+
+    # Кнопки для игры
+    button_font = pygame.font.Font(None, 28)
+
+    button_3 = pygame.draw.rect(screen, GREEN, (20, 200, 150, 40))
+    button_4 = pygame.draw.rect(screen, GREEN, (20, 250, 150, 40))
+    button_5 = pygame.draw.rect(screen, GREEN, (20, 300, 150, 40))
+
+    screen.blit(button_font.render("Multiply by 3", True, BLACK), (50, 210))
+    screen.blit(button_font.render("Multiply by 4", True, BLACK), (50, 260))
+    screen.blit(button_font.render("Multiply by 5", True, BLACK), (50, 310))
+
+    # Обработка событий
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            game.running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            if button_3.collidepoint(mouse_x, mouse_y):
+                game.make_move(3)
+            elif button_4.collidepoint(mouse_x, mouse_y):
+                game.make_move(4)
+            elif button_5.collidepoint(mouse_x, mouse_y):
+                game.make_move(5)
+
+    pygame.display.update()
+
+pygame.quit()
+sys.exit()
