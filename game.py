@@ -241,9 +241,15 @@ def draw_button(text, x, y, width, height, color, hover_color=None):
     return button_rect
  
 # Funkcija teksta zīmēšanai
-def draw_text(text, x, y, color=BLACK):
+def draw_text(text, x, y, color=BLACK, centerx=False):
     text_surface = font.render(text, True, color)
-    window.blit(text_surface, (x, y))
+    text_rect = text_surface.get_rect()
+    if centerx:
+        text_rect.centerx = x
+        text_rect.y = y
+    else:
+        text_rect.topleft = (x, y)
+    window.blit(text_surface, text_rect)
  
 # Galvenā funkcija
 def main():
@@ -288,7 +294,24 @@ def main():
                         if event.unicode.isdigit():
                             input_text += event.unicode
                             error_message = ""
-           
+                elif event.type == MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if 300 <= mouse_pos[0] <= 500 and 270 <= mouse_pos[1] <= 320:
+                        if input_text.strip():
+                            try:
+                                start_number = int(input_text)
+                                if 20 <= start_number <= 30:
+                                    game_state = "CHOOSE_FIRST"
+                                    error_message = ""
+                                else:
+                                    error_message = "Skaitlim jābūt no 20 līdz 30! Mēģiniet vēlreiz!"
+                                    input_text = ""
+                            except ValueError:
+                                error_message = "Ievadiet derīgu skaitli! Mēģiniet vēlreiz!"
+                                input_text = ""
+                        else:
+                            error_message = "Ievadiet skaitli! Mēģiniet vēlreiz!"
+       
             elif game_state == "CHOOSE_FIRST":
                 if event.type == MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
@@ -324,21 +347,20 @@ def main():
                     else:  # Datora gājiens
                         multiplier = computer_move(game, algorithm)
                         game.make_move(multiplier)
-                        pygame.time.delay(500)
  
         # Zīmēšanas daļa
         if game_state == "INPUT_NUMBER":
-            draw_text("Ievadiet sākuma skaitli (20-30):", 100, 100, BLACK)
-            draw_text(input_text, 100, 150, BLACK)
+            draw_text("Ievadiet sākuma skaitli (20-30):", WINDOW_WIDTH // 2, 145, BLACK, True)
             draw_button("Enter", 300, 270, 200, 50, GRAY, LIGHT_BLUE)
  
-            input_rect = pygame.Rect(100, 150, 200, 40)
-            pygame.draw.rect(window, WHITE, input_rect)  
-            pygame.draw.rect(window, BLACK, input_rect, 2)  
-            draw_text(input_text, 110, 160, BLACK)
+            input_rect = pygame.Rect(100, 150, 180, 40)
+            input_rect.center = (WINDOW_WIDTH // 2, 200)
+            pygame.draw.rect(window, WHITE, input_rect)
+            pygame.draw.rect(window, BLACK, input_rect, 2)
+            draw_text(input_text, (WINDOW_WIDTH // 2), 190, BLACK, True)
            
             if error_message:
-                draw_text(error_message, 100, 220, RED)
+                draw_text(error_message, (WINDOW_WIDTH // 2), 230, RED, True)
        
         elif game_state == "CHOOSE_FIRST":
             draw_text("Izvēlieties, kurš sāks spēli:", 100, 100, BLACK)
