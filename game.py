@@ -11,15 +11,23 @@ WINDOW_HEIGHT = 600
  
 # Krāsas
 WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-GRAY = (200, 200, 200)
-LIGHT_BLUE = (173, 216, 230)
+BLACK = (40, 44, 52)  # Darker black for better contrast
+GREEN = (46, 204, 113)  # Flat UI green
+RED = (231, 76, 60)    # Flat UI red
+BLUE = (52, 152, 219)  # Flat UI blue
+GRAY = (189, 195, 199) # Flat UI gray
+LIGHT_BLUE = (133, 193, 233)
+BACKGROUND_COLOR = (236, 240, 241)  # Light gray background
+BUTTON_COLOR = (52, 152, 219)       # Flat blue for buttons
+BUTTON_HOVER_COLOR = (41, 128, 185)  # Darker blue for hover
  
-# Fonts
-font = pygame.font.Font(None, 36)
+# Fonts - Using custom fonts for a modern look
+try:
+    REGULAR_FONT = pygame.font.Font("assets/Roboto-Regular.ttf", 36)
+    TITLE_FONT = pygame.font.Font("assets/Roboto-Bold.ttf", 48)
+except:
+    REGULAR_FONT = pygame.font.Font(None, 36)
+    TITLE_FONT = pygame.font.Font(None, 48)
  
 # Loga izveide
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -29,6 +37,11 @@ pygame.display.set_caption("MaxLiga Game")
 BUTTON_WIDTH = 150
 BUTTON_HEIGHT = 50
 BUTTON_GAP = 20
+ 
+# Pievienojam globālos mainīgos spēles sākumā, pēc krāsu definīcijām
+COMPUTER_MOVE_DELAY = 2000  # 2 sekundes milisekundēs
+computer_move_start_time = 0
+computer_thinking = False
  
 # Spēles stāvokļa klase
 class Game:
@@ -230,18 +243,24 @@ def draw_button(text, x, y, width, height, color, hover_color=None):
     mouse_pos = pygame.mouse.get_pos()
     button_rect = pygame.Rect(x, y, width, height)
    
-    if hover_color and button_rect.collidepoint(mouse_pos):
-        pygame.draw.rect(window, hover_color, button_rect)
-    else:
-        pygame.draw.rect(window, color, button_rect)
+    # Add shadow effect
+    shadow_rect = pygame.Rect(x + 2, y + 2, width, height)
+    pygame.draw.rect(window, (0, 0, 0, 30), shadow_rect, border_radius=10)
    
-    text_surface = font.render(text, True, BLACK)
+    if hover_color and button_rect.collidepoint(mouse_pos):
+        pygame.draw.rect(window, hover_color, button_rect, border_radius=10)
+    else:
+        pygame.draw.rect(window, color, button_rect, border_radius=10)
+   
+    text_surface = REGULAR_FONT.render(text, True, WHITE)  # White text on buttons
     text_rect = text_surface.get_rect(center=button_rect.center)
     window.blit(text_surface, text_rect)
     return button_rect
  
 # Funkcija teksta zīmēšanai
-def draw_text(text, x, y, color=BLACK, centerx=False):
+def draw_text(text, x, y, color=BLACK, centerx=False, font=None, size=36):
+    if font is None:
+        font = pygame.font.Font(None, size)
     text_surface = font.render(text, True, color)
     text_rect = text_surface.get_rect()
     if centerx:
@@ -261,9 +280,13 @@ def main():
     first_player = None
     game_state = "INPUT_NUMBER"  # INPUT_NUMBER → CHOOSE_FIRST → CHOOSE_ALGORITHM → PLAYING
     error_message = ""
+    # Pievienojam globālos mainīgos
+    global computer_move_start_time
+    global computer_thinking
  
     while True:
-        window.fill(WHITE)
+        current_time = pygame.time.get_ticks()
+        window.fill(BACKGROUND_COLOR)  # Use the new background color
        
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -329,10 +352,18 @@ def main():
                         algorithm = "minimax"
                         game = Game(start_number, first_player)
                         game_state = "PLAYING"
+                        # Initialize computer's first move if computer starts
+                        if first_player == "Dators":
+                            computer_thinking = True
+                            computer_move_start_time = current_time
                     elif 450 <= mouse_pos[0] <= 600 and 250 <= mouse_pos[1] <= 300:
                         algorithm = "alphabeta"
                         game = Game(start_number, first_player)
                         game_state = "PLAYING"
+                        # Initialize computer's first move if computer starts
+                        if first_player == "Dators":
+                            computer_thinking = True
+                            computer_move_start_time = current_time
            
             elif game_state == "PLAYING":
                 if event.type == MOUSEBUTTONDOWN and game and not game.game_over:
@@ -340,54 +371,85 @@ def main():
                     if game.player1_turn:  # Cilvēka gājiens
                         if 200 <= mouse_pos[0] <= 300 and 400 <= mouse_pos[1] <= 450:
                             game.make_move(3)
+                            if not game.game_over:
+                                computer_thinking = True
+                                computer_move_start_time = current_time
                         elif 350 <= mouse_pos[0] <= 450 and 400 <= mouse_pos[1] <= 450:
                             game.make_move(4)
+                            if not game.game_over:
+                                computer_thinking = True
+                                computer_move_start_time = current_time
                         elif 500 <= mouse_pos[0] <= 600 and 400 <= mouse_pos[1] <= 450:
                             game.make_move(5)
-                    else:  # Datora gājiens
-                        multiplier = computer_move(game, algorithm)
-                        game.make_move(multiplier)
+                            if not game.game_over:
+                                computer_thinking = True
+                                computer_move_start_time = current_time
+                elif event.type == MOUSEBUTTONDOWN and game.game_over:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if 300 <= mouse_pos[0] <= 500 and 450 <= mouse_pos[1] <= 500:
+                        game = None
+                        game_state = "INPUT_NUMBER"
+                        input_text = ""
+ 
+        # Pārvietojam datora gājiena loģiku ārpus notikumu apstrādes
+        if game_state == "PLAYING" and game and not game.game_over:
+            if not game.player1_turn and computer_thinking:
+                if current_time - computer_move_start_time >= COMPUTER_MOVE_DELAY:
+                    multiplier = computer_move(game, algorithm)
+                    game.make_move(multiplier)
+                    computer_thinking = False
  
         # Zīmēšanas daļa
         if game_state == "INPUT_NUMBER":
+            draw_text("MaxLiga Game", WINDOW_WIDTH // 2, 50, BLACK, True, TITLE_FONT)
             draw_text("Ievadiet sākuma skaitli (20-30):", WINDOW_WIDTH // 2, 145, BLACK, True)
-            draw_button("Enter", 300, 270, 200, 50, GRAY, LIGHT_BLUE)
- 
-            input_rect = pygame.Rect(100, 150, 180, 40)
+           
+            # Modern input box
+            input_rect = pygame.Rect(100, 150, 280, 50)
             input_rect.center = (WINDOW_WIDTH // 2, 200)
-            pygame.draw.rect(window, WHITE, input_rect)
-            pygame.draw.rect(window, BLACK, input_rect, 2)
+            pygame.draw.rect(window, WHITE, input_rect, border_radius=8)
+            pygame.draw.rect(window, BLUE, input_rect, 2, border_radius=8)
             draw_text(input_text, (WINDOW_WIDTH // 2), 190, BLACK, True)
+           
+            draw_button("Enter", 300, 270, 200, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
            
             if error_message:
                 draw_text(error_message, (WINDOW_WIDTH // 2), 230, RED, True)
        
         elif game_state == "CHOOSE_FIRST":
-            draw_text("Izvēlieties, kurš sāks spēli:", 100, 100, BLACK)
-            draw_button("Cilvēks", 200, 250, 150, 50, GRAY, LIGHT_BLUE)
-            draw_button("Dators", 450, 250, 150, 50, GRAY, LIGHT_BLUE)
+            draw_text("MaxLiga Game", WINDOW_WIDTH // 2, 50, BLACK, True, TITLE_FONT)
+            draw_text("Izvēlieties, kurš sāks spēli:", WINDOW_WIDTH // 2, 150, BLACK, True)
+            draw_button("Cilvēks", 200, 250, 150, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+            draw_button("Dators", 450, 250, 150, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
        
         elif game_state == "CHOOSE_ALGORITHM":
-            draw_text("Izvēlieties algoritmu:", 100, 100, BLACK)
-            draw_button("Minimaks", 200, 250, 150, 50, GRAY, LIGHT_BLUE)
-            draw_button("Alfa-beta", 450, 250, 150, 50, GRAY, LIGHT_BLUE)
+            draw_text("MaxLiga Game", WINDOW_WIDTH // 2, 50, BLACK, True, TITLE_FONT)
+            draw_text("Izvēlieties algoritmu:", WINDOW_WIDTH // 2, 150, BLACK, True)
+            draw_button("Minimaks", 200, 250, 150, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+            draw_button("Alfa-beta", 450, 250, 150, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
        
         elif game_state == "PLAYING":
-            draw_text(f"Pašreizējais skaitlis: {game.current_number}", 100, 100, BLACK)
-            draw_text(f"Kopējie punkti: {game.total_points}", 100, 150, BLACK)
-            draw_text(f"Banka: {game.bank}", 100, 200, BLACK)
-            draw_text(f"Pirmais spēlētājs: {first_player}", 100, 250, BLACK)
+            # Game info panel
+            info_panel = pygame.Rect(50, 50, WINDOW_WIDTH - 100, 150)
+            pygame.draw.rect(window, WHITE, info_panel, border_radius=15)
+            pygame.draw.rect(window, GRAY, info_panel, 2, border_radius=15)
+           
+            draw_text(f"Pašreizējais skaitlis: {game.current_number}", 100, 70, BLACK, size=30)
+            draw_text(f"Kopējie punkti: {game.total_points}", 100, 110, BLACK, size=30)
+            draw_text(f"Banka: {game.bank}", 400, 110, BLACK, size=30)
+            draw_text(f"Pirmais spēlētājs: {first_player}", 400, 70, BLACK, size=30)
            
             if not game.game_over:
                 if game.player1_turn:
                     draw_text("Cilvēka gājiens:", 100, 300, BLUE)
-                    draw_button("3", 200, 400, 100, 50, GRAY, LIGHT_BLUE)
-                    draw_button("4", 350, 400, 100, 50, GRAY, LIGHT_BLUE)
-                    draw_button("5", 500, 400, 100, 50, GRAY, LIGHT_BLUE)
+                    draw_button("3", 200, 400, 100, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+                    draw_button("4", 350, 400, 100, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+                    draw_button("5", 500, 400, 100, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
                 else:
                     draw_text("Dators veic gājienu...", 100, 300, RED)
             else:
-                draw_text(f"Spēle beigusies! Uzvarētājs: {game.winner}", 100, 500, GREEN)
+                draw_text(f"Spēle beigusies! Uzvarētājs: {game.winner}", WINDOW_WIDTH // 2, 400, GREEN, True)
+                draw_button("Spēlēt vēlreiz", 300, 450, 200, 50, BUTTON_COLOR, BUTTON_HOVER_COLOR)
  
         pygame.display.update()
         clock.tick(30)
